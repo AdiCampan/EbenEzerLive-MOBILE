@@ -1,0 +1,20 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.localmodules.audiomode">
+
+    <!-- Permisos necesarios -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <application
+    android:label="ForegroundService"
+    android:icon="@android:drawable/ic_dialog_info">
+
+
+        <!-- Declaración del servicio en primer plano -->
+        <service
+            android:name="com.voximplant.foregroundservice.VIForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|mediaPlayback" />
+
+    </application>
+</manifest>

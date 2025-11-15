@@ -2,29 +2,40 @@
   "expo": {
     "name": "EbenEzerLiveExpo",
     "slug": "EbenEzerLiveExpo",
+    "scheme": "eben-ezer-live",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      },
+      "bundleIdentifier": "com.tuempresa.eben-ezer-live"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.tuempresa.eben_ezer_live",
+      "permissions": [
+        "INTERNET",
+        "WAKE_LOCK",
+        "RECORD_AUDIO",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.tuempresa.eben_ezer_live"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "extra": {
+      "eas": {
+        "projectId": "1786d53f-538a-480f-9015-ac98f80716f9"
+      }
+    },
+    "owner": "adi_es"
   }
 }
