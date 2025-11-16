@@ -402,34 +402,41 @@ function AppContent() {
   }, [language, createSocket, requestOffer]);
 
   // --- AppState para limpiar audio al background ---
+  // --- AppState para manejar audio al background/foreground ---
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
-      if (nextAppState === "background" || nextAppState === "inactive") {
-        if (Platform.OS === "android") {
-          try {
-            InCallManager.setSpeakerphoneOn(false);
-            InCallManager.stop();
-            if (AudioModeModule?.resetAudioState)
-              AudioModeModule.resetAudioState();
-            else if (AudioModeModule?.setModeNormal)
-              AudioModeModule.setModeNormal();
+      if (Platform.OS === "android") {
+        try {
+          if (nextAppState === "active") {
+            // Al volver a foreground, respetamos el estado del altavoz que eligió el usuario
+            InCallManager.setSpeakerphoneOn(speakerOn);
+            console.log(
+              "🔊 Audio restaurado según estado speakerOn:",
+              speakerOn
+            );
+          } else if (
+            nextAppState === "background" ||
+            nextAppState === "inactive"
+          ) {
+            // Solo detener servicios auxiliares, NO tocar el altavoz ni InCallManager.stop()
             if (AudioModeModule?.stopAudioMonitoring)
               AudioModeModule.stopAudioMonitoring();
             if (AudioModeModule?.stopCleanupService)
               AudioModeModule.stopCleanupService();
-            console.log("🔇 Audio reset completo en background");
-          } catch (e) {
-            console.warn("⚠️ Error resetting audio on background:", e);
+            console.log("🔇 Audio services stopped, altavoz intacto");
           }
+        } catch (e) {
+          console.warn("⚠️ Error manejando AppState audio:", e);
         }
       }
     };
+
     const subscription = AppState.addEventListener(
       "change",
       handleAppStateChange
     );
     return () => subscription?.remove();
-  }, []);
+  }, [speakerOn]);
 
   // --- Limpieza completa al desmontar ---
   useEffect(() => {
