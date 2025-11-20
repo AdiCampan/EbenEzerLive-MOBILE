@@ -44,7 +44,6 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react-native";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { Svg, Path } from "react-native-svg";
 import { TURN_USERNAME, TURN_CREDENTIAL } from "@env";
 
@@ -65,11 +64,6 @@ export const rtcConfig = {
     },
   ],
 };
-
-interface Props {
-  speakerOn: boolean;
-  toggleSpeaker: () => void;
-}
 
 function AppContent() {
   const insets = useSafeAreaInsets();
@@ -96,23 +90,6 @@ function AppContent() {
   const fgServiceRef = useRef<any | null>(null);
   const channelCreatedRef = useRef(false);
   const fgStartedRef = useRef(false);
-
-  // Animación cuando speakerOn cambia
-  const anim = useRef(new Animated.Value(speakerOn ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: speakerOn ? 1 : 0,
-      duration: 250,
-      easing: Easing.out(Easing.circle),
-      useNativeDriver: false,
-    }).start();
-  }, [speakerOn]);
-
-  const thumbPosition = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [8, 90],
-  });
 
   const { AudioModeModule } = NativeModules;
 
@@ -217,7 +194,6 @@ function AppContent() {
       console.log("♻️ Reintentando conexión WS en 4s…");
       setTimeout(() => createSocket(), 4000);
     };
-    allowWSReconnect.current = true;
 
     ws.onmessage = (event) => {
       try {
@@ -371,7 +347,6 @@ function AppContent() {
     } catch (err) {
       console.warn("⚠️ Error stopping listening:", err);
     }
-    allowWSReconnect.current = false;
   }, [language, stopForegroundService]);
 
   useEffect(() => {
@@ -467,19 +442,7 @@ function AppContent() {
   useEffect(() => {
     return () => {
       stopForegroundService().catch(() => {});
-      if (wsRef.current) {
-        try {
-          wsRef.current.onopen = null;
-          wsRef.current.onmessage = null;
-          wsRef.current.onerror = null;
-          wsRef.current.onclose = null;
-          wsRef.current.close();
-        } catch (e) {
-          console.warn("⚠️ WS close error:", e);
-        }
-        wsRef.current = null; // ← ESTO ES LO QUE FALTABA
-      }
-
+      wsRef.current?.close();
       if (Platform.OS === "android") {
         try {
           InCallManager.setSpeakerphoneOn(false);
@@ -591,8 +554,7 @@ function AppContent() {
               return (
                 <TouchableOpacity
                   key={code}
-                  onPr
-                  ess={() => {
+                  onPress={() => {
                     if (!active) return;
                     if (
                       !wsRef.current ||
@@ -632,7 +594,6 @@ function AppContent() {
           </View>
         ) : (
           <View style={styles.audioContainer}>
-            {/* Icono de audio con animación */}
             <Animated.View
               style={[
                 styles.audioIconBox,
@@ -641,45 +602,36 @@ function AppContent() {
             >
               <Volume2 color="#3ee8ef" size={69} />
             </Animated.View>
-
             <View style={styles.buttonsContainer}>
-              {/* Botón DETENER */}
               <TouchableOpacity
                 style={styles.stopButton}
                 onPress={stopListening}
               >
                 <Text style={styles.stopLabel}>Detener</Text>
               </TouchableOpacity>
-
-              {/* SWITCH AUDIO */}
               <TouchableOpacity
-                onPress={toggleSpeaker}
-                activeOpacity={0.9}
                 style={[
-                  styles.switchContainer,
+                  styles.speakerButton,
                   { backgroundColor: speakerOn ? "#1d7fa6" : "#283753" },
                 ]}
+                onPress={toggleSpeaker}
+                activeOpacity={0.8}
+                accessibilityLabel="Alternar altavoz"
               >
-                {/* Thumb */}
-                <Animated.View
-                  style={[styles.switchThumb, { left: thumbPosition }]}
-                />
-
-                {/* Iconos */}
-                <View style={styles.switchIcons}>
-                  <MaterialCommunityIcons
-                    name="headphones"
-                    size={30}
-                    color={speakerOn ? "#c0bebeff" : "#58ef3eff"}
-                  />
-                  <MaterialCommunityIcons
-                    name="volume-high"
-                    size={30}
-                    color={speakerOn ? "#35fc42ff" : "#c3c1c1ff"}
-                  />
-                </View>
+                {speakerOn ? (
+                  <Volume2 color="#fff" size={22} />
+                ) : (
+                  <VolumeX color="#fff" size={22} />
+                )}
               </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              style={styles.emergencyButton}
+              onPress={emergencyAudioReset}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.emergencyLabel}>🚨 Reset Audio</Text>
+            </TouchableOpacity>
           </View>
         )}
         {/* --- SIEMPRE debajo, las cajas de info y contacto --- */}
@@ -836,79 +788,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   audioContainer: {
-    alignItems: "center",
+    marginVertical: 20,
     width: "100%",
-    marginTop: 10,
-  },
-
-  // Icono superior (el grande)
-  audioIconBox: {
-    marginBottom: 10,
-  },
-
-  // Contenedor de botones
-  buttonsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    width: "100%",
-    marginTop: 10,
-    paddingHorizontal: 10, // para que no peguen a los bordes
-  },
-
-  // Botón DETENER
-  stopButton: {
-    backgroundColor: "#2352a7",
-    paddingVertical: 12,
-    paddingHorizontal: 26,
-    borderRadius: 30,
-    shadowColor: "#0d274b",
-    shadowOpacity: 0.25,
-    shadowRadius: 7,
-    elevation: 7,
-  },
-
-  stopLabel: {
-    color: "#f4f7fb",
-    fontWeight: "700",
-    fontSize: 16,
-    letterSpacing: 0.4,
-  },
-
-  // SWITCH AUDIO
-  switchContainer: {
-    width: 150,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#1d7fa6",
-    shadowColor: "#0d274b",
-    shadowOpacity: 0.22,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-
-  switchThumb: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#fff",
-    position: "absolute",
-    top: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
-    zIndex: 0,
-  },
-
-  switchIcons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    zIndex: 2,
   },
   rtcView: {
     width: "100%",
@@ -916,7 +798,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#222e3c",
   },
-
+  buttonsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 10,
+  },
   canvas: {
     width: "100%",
     height: 80,
@@ -924,7 +811,54 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 10,
   },
-
+  stopButton: {
+    marginTop: 10,
+    backgroundColor: "#2352a7",
+    paddingVertical: 11,
+    paddingHorizontal: 22,
+    borderRadius: 13,
+    shadowColor: "#1a406f",
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 7,
+    alignSelf: "center",
+  },
+  stopLabel: {
+    color: "#f4f7fb",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  speakerButton: {
+    marginTop: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 50,
+    width: 46,
+    height: 46,
+    shadowColor: "#143a56",
+    shadowOpacity: 0.19,
+    shadowRadius: 8,
+    elevation: 4,
+    alignSelf: "center",
+    backgroundColor: "#1d7fa6",
+  },
+  emergencyButton: {
+    marginTop: 8,
+    backgroundColor: "#e74c3c",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: "center",
+    shadowColor: "#c0392b",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  emergencyLabel: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   rightColumn: {
     marginTop: 20,
     width: "100%",
@@ -956,16 +890,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "500",
   },
-  // audioIconBox: {
-  //   width: 80,
-  //   height: 80,
-  //   marginBottom: 4,
-  //   alignItems: "center",
-  //   justifyContent: "center",
-  //   alignSelf: "center",
-  //   borderRadius: 60,
-  //   backgroundColor: "transparent",
-  // },
+  audioIconBox: {
+    width: 80,
+    height: 80,
+    marginBottom: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    borderRadius: 60,
+    backgroundColor: "transparent",
+  },
   infoBox: {
     backgroundColor: "#202f47",
     borderRadius: 16,
