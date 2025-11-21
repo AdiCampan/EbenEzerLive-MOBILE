@@ -344,6 +344,13 @@ function AppContent() {
 
       // Foreground service
       stopForegroundService().catch(console.warn);
+      
+      // CRITICAL FIX: Restaurar allowWSReconnect después de la limpieza
+      // Esto permite futuras reconexiones después de detener
+      setTimeout(() => {
+        allowWSReconnect.current = true;
+        console.log("✅ WebSocket reconnect habilitado de nuevo");
+      }, 500);
     } catch (err) {
       console.warn("⚠️ Error stopping listening:", err);
     }
@@ -554,18 +561,48 @@ function AppContent() {
               return (
                 <TouchableOpacity
                   key={code}
-                  onPress={() => {
+                  onPress={async () => {
                     if (!active) return;
+                    
+                    // Asegurar que allowWSReconnect esté habilitado
+                    allowWSReconnect.current = true;
+                    
+                    // Si el WebSocket no está abierto, recrearlo y esperar
                     if (
                       !wsRef.current ||
                       wsRef.current.readyState !== WebSocket.OPEN
                     ) {
                       console.log(
-                        "🔄 Reiniciando WebSocket antes de escuchar…"
+                        "🔄 WebSocket cerrado, recreando y esperando conexión…"
                       );
-                      allowWSReconnect.current = true;
                       createSocket();
+                      
+                      // Esperar a que el WebSocket se abra (con timeout de 5s)
+                      const waitForConnection = new Promise<boolean>((resolve) => {
+                        const startTime = Date.now();
+                        const checkConnection = () => {
+                          if (wsRef.current?.readyState === WebSocket.OPEN) {
+                            console.log("✅ WebSocket conectado, procediendo…");
+                            resolve(true);
+                          } else if (Date.now() - startTime > 5000) {
+                            console.warn("⚠️ Timeout esperando WebSocket");
+                            resolve(false);
+                          } else {
+                            setTimeout(checkConnection, 100);
+                          }
+                        };
+                        checkConnection();
+                      });
+                      
+                      const connected = await waitForConnection;
+                      if (!connected) {
+                        console.error("❌ No se pudo conectar WebSocket");
+                        return;
+                      }
                     }
+                    
+                    // Ahora sí, establecer el idioma
+                    console.log(`🎧 Estableciendo idioma: ${code}`);
                     setLanguage(code);
                   }}
                   disabled={!active}
